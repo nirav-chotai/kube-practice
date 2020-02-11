@@ -1,0 +1,43 @@
+ubuntu@ip-10-0-128-5:~$ kubectl config use-context challenge-context
+Switched to context "challenge-context".
+ubuntu@ip-10-0-128-5:~$ kubectl get nodes
+NAME                                        STATUS   ROLES    AGE     VERSION
+ip-10-0-0-100.us-west-2.compute.internal    Ready    master   3m38s   v1.15.1
+ip-10-0-0-75.us-west-2.compute.internal     Ready    <none>   68s     v1.15.1
+ip-10-0-16-231.us-west-2.compute.internal   Ready    <none>   95s     v1.15.0
+
+kubectl drain ip-10-0-16-231.us-west-2.compute.internal --ignore-daemonsets
+
+
+# from worked node
+sudo apt-get upgrade -y --allow-change-held-packages \
+     kubelet=1.15.1-00 kubeadm=1.15.1-00 kubectl=1.15.1-00
+    
+# Upgrade the worker node's kubelet config using kubeadm
+sudo kubeadm upgrade node config --kubelet-version v1.15.1
+
+sudo systemctl restart kubelet
+
+# from master node
+kubectl uncordon ip-10-0-16-231.us-west-2.compute.internal
+
+kubectl get nodes
+
+kubectl explain pods.spec.containers.securityContext
+kubectl explain service.spec.ports
+
+kubectl config set-context $(kubectl config current-context) --namespace=v8xoqe
+
+kubectl get deploy -n v8xoqe web -o yaml --export
+kubectl get svc -n v8xoqe web -o yaml --export
+
+allowPrivilegeEscalation=true
+
+kubectl get networkpolicy network-policy -n v8xoqe -o yaml --export 
+
+
+kubectl explain networkpolicy.spec.policyTypes
+kubectl explain networkpolicy.spec.policyTypes.Egress
+kubectl explain networkpolicy.spec.ingress.from.namespaceSelector
+
+kubectl get po -n v8xoqe --show-labels

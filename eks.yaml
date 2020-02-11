@@ -1,0 +1,182 @@
+# https://kubernetes.io/docs/tasks/tools/install-kubectl/
+kubectl version --short --client
+Client Version: v1.17.2
+
+# https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html
+brew install aws-iam-authenticator
+aws-iam-authenticator help
+
+# https://docs.aws.amazon.com/eks/latest/userguide/getting-started-eksctl.html
+brew tap weaveworks/tap
+brew install weaveworks/tap/eksctl
+eksctl version
+
+eksctl get clusters
+
+eksctl create cluster --name=cloudacademy-k8s --region=us-west-2 --ssh-public-key=CADemoKey \
+--nodes=4 --node-type=m5.large
+
+cat ~/.kube/config
+
+kubectl get nodes
+kubectl get svc
+
+# Dotnet Core Microservices Implementation
+https://github.com/cloudacademy/Store2018
+https://github.com/cloudacademy/Store2018/tree/master/K8s
+
+➜  service git:(master) kubectl get svc
+NAME                         TYPE           CLUSTER-IP       EXTERNAL-IP                                                               PORT(S)        AGE
+kubernetes                   ClusterIP      10.100.0.1       <none>                                                                    443/TCP        62m
+store2018                    LoadBalancer   10.100.115.94    a9cfa15b04cc411eab5b8061bffc3c17-1091085887.us-west-2.elb.amazonaws.com   80:31094/TCP   14s
+store2018-accountservice     LoadBalancer   10.100.73.255    a9c4975774cc411eab5b8061bffc3c17-233133016.us-west-2.elb.amazonaws.com    80:32254/TCP   15s
+store2018-inventoryservice   LoadBalancer   10.100.165.148   a9ca27da54cc411eab5b8061bffc3c17-418596371.us-west-2.elb.amazonaws.com    80:30617/TCP   14s
+store2018-shoppingservice    LoadBalancer   10.100.28.159    a9d6184424cc411eab5b8061bffc3c17-1106236081.us-west-2.elb.amazonaws.com   80:32132/TCP   13s
+
+# accountservice
+➜  service git:(master) curl -s http://a9c4975774cc411eab5b8061bffc3c17-233133016.us-west-2.elb.amazonaws.com/api/consumers/5
+{
+  "id": 5,
+  "firstname": "Jeremy",
+  "surname": "Cook",
+  "age": 20
+}
+
+# inventoryservice
+➜  service git:(master) curl -s http://a9ca27da54cc411eab5b8061bffc3c17-418596371.us-west-2.elb.amazonaws.com/api/products | jq .
+[
+  {
+    "id": 1,
+    "name": "Toy1",
+    "description": "",
+    "sku": "abc12300",
+    "regularPrice": 29.99,
+    "discountPrice": 20.99,
+    "quantity": 100
+  },
+  {
+    "id": 2,
+    "name": "Toy2",
+    "description": "",
+    "sku": "xyz123",
+    "regularPrice": 29.99,
+    "discountPrice": 20.99,
+    "quantity": 100
+  },
+  ...
+  {
+    "id": 8,
+    "name": "Toy8",
+    "description": "",
+    "sku": "xyz123",
+    "regularPrice": 29.99,
+    "discountPrice": 20.99,
+    "quantity": 100
+  }
+]
+
+# shoppingservice
+➜  service git:(master) curl -s http://a9d6184424cc411eab5b8061bffc3c17-1106236081.us-west-2.elb.amazonaws.com/api/cart/5 | jq .
+
+{
+  "id": 5,
+  "items": [
+    {
+      "id": 33,
+      "name": "Laptop",
+      "description": "",
+      "sku": "abc123",
+      "regularPrice": 29.99,
+      "discountPrice": 20.99,
+      "quantity": 82
+    },
+    {
+      "id": 14,
+      "name": "iPhone",
+      "description": "",
+      "sku": "xyz1238",
+      "regularPrice": 29.99,
+      "discountPrice": 20.99,
+      "quantity": 67
+    },
+    {
+      "id": 20,
+      "name": "Jacket",
+      "description": "",
+      "sku": "xyz1239",
+      "regularPrice": 29.99,
+      "discountPrice": 20.99,
+      "quantity": 405
+    }
+  ]
+}
+
+# testing with accountservice
+kubectl port-forward store2018-accountservice-764db9d679-fdztg 8000:80
+
+curl localhost:8000/api/consumers/5
+
+# testing with presentation layer
+kubectl exec -it store2018-7c8f9748b4-g9hjh /bin/bash
+
+root@store2018-7c8f9748b4-g9hjh:/app# cat /etc/nginx/sites-enabled/default
+
+tail -f /var/log/nginx/access.log
+
+curl -I a9cfa15b04cc411eab5b8061bffc3c17-1091085887.us-west-2.elb.amazonaws.com
+
+ab -n 100 -c 10 http://a9cfa15b04cc411eab5b8061bffc3c17-1091085887.us-west-2.elb.amazonaws.com/
+
+Time per request:       881.300 [ms] (mean)
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:      273  293  12.1    291     337
+Processing:   299  411 249.1    327    1551
+Waiting:      293  341  54.4    317     651
+Total:        576  704 249.8    623    1843
+
+Percentage of the requests served within a certain time (ms)
+  50%    623
+  66%    700
+  75%    710
+  80%    717
+  90%    746
+  95%   1695
+  98%   1802
+  99%   1843
+ 100%   1843 (longest request)
+
+ab -n 1000 -c 20 http://a9cfa15b04cc411eab5b8061bffc3c17-1091085887.us-west-2.elb.amazonaws.com/
+
+Time per request:       677.477 [ms] (mean)
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:      269  288   9.0    287     390
+Processing:   294  350 137.9    316    1555
+Waiting:      291  314  22.9    309     421
+Total:        568  638 139.7    605    1862
+
+Percentage of the requests served within a certain time (ms)
+  50%    605
+  66%    613
+  75%    624
+  80%    645
+  90%    710
+  95%    729
+  98%    785
+  99%   1719
+ 100%   1862 (longest request)
+
+ # deployments
+ kubectl delete -f .
+
+ # services
+ kubectl delete -f .
+
+ # deleting EKS cluster
+ eksctl get cluster
+ eksctl delete cluster cloudacademy-k8s
+
+ 

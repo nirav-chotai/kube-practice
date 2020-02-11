@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: adapted-pod
+spec:
+  containers:
+  - name: app
+    image: alpine:3.9.2
+    command: ["/bin/sh", "-c"]
+    # output legacy formatted metrics every 5 seconds
+    args:
+    - mkdir /metrics;
+      while true; do
+        date > /metrics/raw.txt;
+        top -n 1 -b >> /metrics/raw.txt;
+        sleep 5;
+      done
+    # share metric data between containers
+    volumeMounts:
+    - name: metrics
+      mountPath: /metrics
+  
+  - name: adapter
+    image: httpd:2.4.38-alpine
+    command: ["/bin/sh", "-c"]
+    # Adapt the legacy output to standard monitoring format
+    args:
+    - while true; do
+        date=$(head -1 /metrics/raw.txt);
+        memory=$(head -2 /metrics/raw.txt | tail -1 | grep -o -E '\d+\w' | head -1);
+        cpu=$(head -3 /metrics/raw.txt | tail -1 | grep -o -E '\d+%' | head -1);
+        echo "{\"date\":\"$date\",\"memory\":\"$memory\",\"cpu\":\"$cpu\"}" > /metrics/adapted.json;
+        sleep 5;
+      done
+    # Share metric data between containers
+    volumeMounts:
+    - name: metrics
+      mountPath: /metrics
+  
+  volumes:
+  - name: metrics
+    emptyDir: {}

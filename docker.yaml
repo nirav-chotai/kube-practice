@@ -1,0 +1,207 @@
+########################################################################################################
+# Cleanup Commands
+########################################################################################################
+stop all containers:
+docker stop $(docker ps -q)
+OR
+docker kill $(docker ps -q)
+
+remove all containers:
+docker rm $(docker ps -a -q)
+
+remove all docker images:
+docker rmi $(docker images -q)
+
+remove all docker volumes:
+docker volume ls -qf dangling=true | xargs -r docker volume rm
+
+Clean everything:
+docker system prune
+
+remove all containers forcefully:
+docker rm -f $(docker ps -a -q)
+
+remove all docker images forcefully:
+docker rmi -f $(docker images -q)
+
+########################################################################################################
+# Install Commands
+########################################################################################################
+
+# Not recommended way to install docker on Linux
+sudo apt install docker.io (not recommended, as getting very old version)
+
+# Uninstall an older version
+sudo apt-get remove docker docker-engine docker.io
+
+# Recommended way to install docker on Linux
+curl -fsSL get.docker.com -o get-docker.sh
+sh get-docker.sh
+
+# Add user to docker group
+sudo usermod -aG docker nirav
+
+# Install docker-machine on Linux
+base=https://github.com/docker/machine/releases/download/v0.14.0 &&
+  curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/tmp/docker-machine &&
+  sudo install /tmp/docker-machine /usr/local/bin/docker-machine
+
+# Install docker-compose on Linux
+sudo curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+########################################################################################################
+# Docker Commands
+########################################################################################################
+# verified cli can talk to engine
+docker version
+
+# if get can't connect to server problem, then do this
+docker-machine ls
+docker-machine env default
+# and run the output of command to configure your shell
+
+# most config values of engine
+docker info
+
+# pulling an image
+docker pull alpine
+
+# running nginx container
+# old way: docker command
+# new way: docker command sub-command
+docker container run --publish 80:80 nginx
+
+# in a detach mode
+docker container run --publish 80:80 --detach nginx
+
+# running container with name and passing env
+# -p or --publish is always in the form of HOST:CONTAINER
+docker container run --publish 80:80 --detach --name nginx nginx
+docker container run --p 8080:80 -d --name httpd httpd
+docker container run --p 3306:3306 -d -e MYSQL_RANDOM_ROOT_PASSWORD=yes --name mysql mysql
+docker container run --name mongo -d mongo
+
+# to check the ports listening inside the container 
+docker container port nginx
+
+# list running containers
+# old way: docker ps
+docker container ls
+
+# stop the running container
+docker container stop container_id
+
+# to get all containers list
+docker container ls -a
+
+# docker container run always start new container
+# to start an existing container
+docker container start container_name
+docker container start -ai container_name
+
+# logs for specific container
+docker container logs container_name
+docker container logs --tail 100 nginx
+
+# display the running processes of a container
+docker container top container_name
+
+# removing multiple containers
+docker container rm -f 5ee 2a1 282 2e9 824
+docker container rm -f $(docker ps -aq)
+
+# show metadata about the container, startup/config/volumes/networking etc.
+# --format, a common option for formatting the output of commands using "Go templates"
+docker container inspect container_name
+docker container inspect --format "{{ .NetworkSettings.IPAddress }}" nginx
+
+# live peformance stats for all containers
+docker container stats
+
+# start a new container iteractively
+docker container run -it ...
+docker container run -it --name nginx nginx bash
+
+# run additional command in an existing container
+docker container exec -it ...
+docker container exec -it mysql bash
+
+#############
+# Networking
+#############
+
+# show networks
+docker network ls
+
+# inspect a network
+docker network inspect bridge
+
+# create a network
+docker network create --driver
+
+# attach a network to container
+docker network connect
+
+# detach a network from container
+docker network disconnect
+
+# Layers
+docker image ls
+docker history <IMAGE_NAME/ID>
+
+# tagging and pushing images to docker registry 
+docker image tag nginx nirav/nginx:1.0.0
+docker login 
+# Store session under ~/.docker/config.json
+docker push <IMAGE>
+docker logout 
+
+#############
+# Dockerfile
+#############
+Dockerfile
+.dockerignore file
+
+docker build -f some-dockerfile
+
+FROM
+MAINTAINER
+USER
+VOLUME
+ENV
+RUN
+WORKDIR
+ADD
+COPY
+EXPOSE
+CMD
+LABEL
+
+########################################################################################################
+# Resources
+########################################################################################################
+
+Build, compose, deploy, and manage Docker containers from development to DevOps based clusters
+
+Containers are the "Fastest Growing Cloud Enabling Technology"
+
+"By 2020, more than 50% of global organizations will be running containers in production." - Gartner
+
+https://landscape.cncf.io/grouping=landscape
+https://github.com/cncf/landscape/blob/master/README.md#trail-map
+https://dockermastery.slack.com/
+https://docs.docker.com/
+https://store.docker.com/
+https://get.docker.com/
+https://hub.docker.com/
+https://labs.play-with-docker.com/
+https://cloudconvert.com/
+http://cmder.net/
+# List of Official Docker Images 
+https://github.com/docker-library/official-images/tree/master/library
+# Udemy Course to build, compose, deploy, and manage containers 
+# from local development to high-availability in the cloud
+https://github.com/bretfisher/udemy-docker-mastery
+
+typing ctrl+p and ctrl+q after each other

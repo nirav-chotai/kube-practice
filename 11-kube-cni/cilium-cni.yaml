@@ -1,0 +1,55 @@
+# lab
+
+# Cilium will be used to secure network connectivity to the API using Layer-7 (HTTP) rules.
+
+kubectl get nodes
+
+# Use kubectl to download and install the Cilium Kubernetes CNI plugin
+kubectl create -f https://raw.githubusercontent.com/cilium/cilium/1.6.1/install/kubernetes/quick-install.yaml
+
+watch -n2 kubectl -n kube-system get pods
+
+cd /home/project/code/StarWars/lab-code
+ls -la
+kubectl apply -f deploy-api.yaml
+kubectl get pods
+kubectl get services
+
+# Retrieve the DeathStar Service VIP assigned to the API.
+DEATHSTAR_VIP=`kubectl get service/deathstar -o jsonpath='{.spec.clusterIP}'`
+echo $DEATHSTAR_VIP 
+
+# Perform a curl request that originates from tiefighter pod
+# sent to the /v1 API service endpoint
+kubectl exec -it tiefighter -- curl -is -XGET http://$DEATHSTAR_VIP/v1
+
+# Now perform a curl request that originates from tiefighter pod
+# sent to the /v1/request-landing API service endpoint
+kubectl exec -it tiefighter -- curl -is -XPOST http://$DEATHSTAR_VIP/v1/request-landing
+
+# Now perform a curl request that originates from xwing pod 
+# sent to the same /v1/request-landing API
+kubectl exec -it xwing -- curl -is -XPOST http://$DEATHSTAR_VIP/v1/request-landing
+
+# Notice the response which indicates success - which is NOT expected.
+
+cd /home/project/code/StarWars/lab-code
+ls -la
+kubectl apply -f l7-networkpolicy.yaml
+kubectl describe cnp
+
+# Retrieve the DeathStar Service VIP assigned to the API
+DEATHSTAR_VIP=`kubectl get service/deathstar -o jsonpath='{.spec.clusterIP}'`
+echo $DEATHSTAR_VIP 
+
+# Now perform a curl request that originates from tiefighter pod 
+# sent to the /v1/request-landing API service endpoint
+kubectl exec -it tiefighter -- curl -i --connect-timeout 10 -XPOST http://$DEATHSTAR_VIP/v1/request-landing
+
+# Now perform a curl request that originates from xwing pod 
+# sent to the same /v1/request-landing API service endpoint. 
+kubectl exec -it xwing -- curl -i --connect-timeout 10 -XPOST http://$DEATHSTAR_VIP/v1/request-landing
+
+
+
+

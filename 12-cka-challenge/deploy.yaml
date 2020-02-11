@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rtro
+  labels:
+    app: busybox
+  namespace: cal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: busybox
+  template:
+    metadata:
+      labels:
+        app: busybox
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+      - name: busybox
+        image: busybox:1.31.1
+        args:
+        - sleep
+        - "3600"
+        securityContext:
+          allowPrivilegeEscalation: false

@@ -1,0 +1,24 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx
+  namespace: scheduling
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      tolerations:
+        - key: priority
+          value: high
+          effect: NoSchedule
+      containers:
+      - image: nginx
+        name: nginx

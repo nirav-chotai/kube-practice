@@ -1,0 +1,190 @@
+# Lab
+
+# Get the IP address of the Kubernetes master using the AWS CLI
+master_ip=$(aws ec2 describe-instances \
+  --region=us-west-2 \
+  --filters "Name=tag:Name,Values=k8s-master" \
+  --query "Reservations[0].Instances[0].PrivateIpAddress" \
+  --output text)
+# Securely copy the kubeonfig file
+scp -o "ForwardAgent yes" ubuntu@$master_ip:~/kubeconfig ~/.kube/config
+
+source <(kubectl completion bash)
+
+cat << 'EOF' > first-pod.yaml
+apiVersion: v1            # The API path for the Pod resource
+kind: Pod                 # The kind of resource (Pod)
+metadata:
+  name: first-pod         # Name of the Pod
+spec:
+  containers:             # List of containers in the Pod
+  - image: httpd:2.4.38   # Container image (using a tag to specify version 2.4.38) 
+    name: first-container # Name of the container
+EOF
+
+kubectl explain Pod.spec | more
+kubectl explain Pod.spec.containers.image
+
+kubectl create -f first-pod.yaml
+kubectl get pod
+kubectl get pod first-pod -o yaml | more
+kubectl delete pod first-pod
+
+# Create namespace
+kubectl create namespace labels
+# Set namespace as the default for the current context
+kubectl config set-context $(kubectl config current-context) --namespace=labels
+
+# pod-labels.yaml
+
+# Write the manifest file
+cat << 'EOF' > pod-labels.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: red-frontend
+  namespace: labels # ceclare namespace in metadata 
+  labels: # labels mapping in metadata
+    color: red
+    tier: frontend
+  annotations: # Example annotation
+    Lab: Kubernetes Pod Design for Application Developers
+spec:
+  containers:
+  - image: httpd:2.4.38
+    name: web-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: green-frontend
+  namespace: labels
+  labels:
+    color: green
+    tier: frontend
+spec:
+  containers:
+  - image: httpd:2.4.38
+    name: web-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: red-backend
+  namespace: labels
+  labels:
+    color: red
+    tier: backend
+spec:
+  containers:
+  - image: postgres:11.2-alpine
+    name: db
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: blue-backend
+  namespace: labels
+  labels:
+    color: blue
+    tier: backend
+spec:
+  containers:
+  - image: postgres:11.2-alpine
+    name: db
+EOF
+
+# Create the Pods
+kubectl create -f pod-labels.yaml
+
+kubectl get pods -L color,tier
+kubectl get pods -L color,tier -l color
+kubectl get pods -L color,tier -l '!color'
+kubectl get pods -L color,tier -l 'color=red'
+kubectl get pods -L color,tier -l 'color=red,tier!=frontend'
+kubectl get pods -L color,tier -l 'color in (blue,green)'
+
+kubectl describe pod red-frontend | grep Annotations
+
+# The annotate command can be used to add/remove/update annotations. 
+# You add a dash (-) after the annotation key to remove the annotation. 
+# You can do the same with the kubectl label command when you need to remove a label.
+
+kubectl annotate pod red-frontend Lab- 
+kubectl describe pod red-frontend | grep Annotations
+
+kubectl delete -f pod-labels.yaml
+
+# Create namespace
+kubectl create namespace deployments
+# Set namespace as the default for the current context
+kubectl config set-context $(kubectl config current-context) --namespace=deployments
+
+kubectl create deployment --image=httpd:2.4.38 web-server --dry-run -o yaml
+kubectl create deployment --image=httpd:2.4.38 web-server
+kubectl describe deployments web-server
+kubectl get pods
+kubectl scale deployment web-server --replicas=6
+kubectl get pods
+kubectl rollout history deployment web-server
+kubectl edit deployment web-server --record
+kubectl rollout status deployment web-server
+kubectl rollout history deployment web-server
+kubectl set image deployment web-server httpd=httpd:2.4.38-alpine --record
+kubectl describe deployments web-server
+# earlier version you can use the --to-revision option 
+kubectl rollout undo deployment web-server
+kubectl expose deployment web-server --type=LoadBalancer
+
+# Create namespace
+kubectl create namespace jobs
+# Set namespace as the default for the current context
+kubectl config set-context $(kubectl config current-context) --namespace=jobs
+
+kubectl create job one-off --image=alpine -- sleep 30
+kubectl get jobs one-off -o yaml | more
+kubectl explain job.spec | more # activeDeadlineSeconds, ttlSecondsAfterFinished
+
+cat << 'EOF' > pod-fail.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pod-fail
+spec:
+  backoffLimit: 3
+  completions: 6
+  parallelism: 2
+  template:
+    spec:
+      containers:
+      - image: alpine
+        name: fail
+        command: ['sleep 20 && exit 1']
+      restartPolicy: Never
+EOF
+
+kubectl create -f pod-fail.yaml
+watch kubectl describe jobs pod-fail
+kubectl get po
+
+cat << 'EOF' > cronjob-example.yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cronjob-example
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - image: alpine
+            name: fail
+            command: ['date']
+          restartPolicy: Never
+EOF
+
+kubectl create -f cronjob-example.yaml
+kubectl describe cronjob cronjob-example
+

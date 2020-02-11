@@ -1,0 +1,108 @@
+[root@ip-172-31-46-199 ~]# docker exec -it 9a19800d2999 /bin/bash
+theia@9a19800d2999:~$ kubectl get nodes
+NAME       STATUS     ROLES    AGE    VERSION
+minikube   NotReady   <none>   187d   v1.15.2
+
+# Use kubectl to download and install the Cilium Kubernetes CNI plugin into the local Kubernetes cluster
+kubectl create -f https://raw.githubusercontent.com/cilium/cilium/1.6.1/install/kubernetes/quick-install.yaml
+
+# Use both watch and kubectl to view the Cilium pods starting up
+watch -n2 kubectl -n kube-system get pods
+
+# Install the Nginx Ingress Controller resources
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
+
+kubectl get all -n ingress-nginx
+
+kubectl get deploy nginx-ingress-controller -n ingress-nginx
+
+kubectl get deploy nginx-ingress-controller -n ingress-nginx -o yaml >> nginx-ingress-controller.yaml
+
+# download and install the yq utility
+curl --location -O https://github.com/mikefarah/yq/releases/download/2.4.0/yq_linux_amd64
+mv yq_linux_amd64 yq
+chmod +x yq
+
+ls -la
+# Inject the hostNetwork: true setting into the nginx-ingress-controller.yaml file
+./yq w nginx-ingress-controller.yaml spec.template.spec.hostNetwork true > nginx-ingress-controller-v2.yaml
+
+kubectl apply -f nginx-ingress-controller-v2.yaml
+
+# you will deploy a custom API as a set of load balanced Pods using the Kubernetes Deployment and Service resources
+cd /home/project/code/API/lab-code
+ls -la
+
+kubectl apply -f deploy-api.yaml
+
+kubectl get po
+
+kubectl get svc
+
+# you will deploy a Kubernetes Ingress resource to allow inbound external traffic to hit the API
+EXTIP=`curl -s ifconfig.co`
+sed -i -e "s/X.X.X.X.nip.io/$EXTIP.nip.io/g" deploy-api-ingress.yaml
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: api
+  labels:
+    role: api
+    env: demo
+spec:
+ rules:
+ - host: api.54.184.58.32.nip.io
+   http:
+     paths:
+     - path: /
+       backend:
+         serviceName: api
+         servicePort: 8080
+
+kubectl apply -f deploy-api-ingress.yaml
+
+kubectl get ingress
+
+# Within the terminal execute the following curl command to exercise the API
+EXTIP=`curl -s ifconfig.co`
+curl -s api.$EXTIP.nip.io/languages  
+
+sudo apt-get install -y jq
+
+curl -s api.$EXTIP.nip.io/languages | jq .
+
+theia@9a19800d2999:/home/project/code/API/lab-code$ curl -s api.$EXTIP.nip.io/languages | jq .
+{
+  "go": {
+    "usecase": "system, web, server-side",
+    "rank": 16,
+    "compiled": true,
+    "homepage": "https://golang.org",
+    "download": "https://golang.org/dl/",
+    "votes": 0
+  },
+  "java": {
+    "usecase": "system, web, server-side",
+    "rank": 2,
+    "compiled": true,
+    "homepage": "https://www.java.com/en/",
+    "download": "https://www.java.com/en/download/",
+    "votes": 0
+  },
+  "javascript": {
+    "usecase": "web, frontend development",
+    "rank": 1,
+    "compiled": false,
+    "homepage": "https://en.wikipedia.org/wiki/JavaScript",
+    "votes": 0
+  },
+  "nodejs": {
+    "usecase": "system, web, server-side",
+    "rank": 30,
+    "compiled": false,
+    "homepage": "https://nodejs.org/en/",
+    "download": "https://nodejs.org/en/download/",
+    "votes": 0
+  }
+}
