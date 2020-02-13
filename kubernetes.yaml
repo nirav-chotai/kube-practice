@@ -99,6 +99,11 @@ minikube stop
 # Configs
 ~/.kube/config 
 
+minikube start --vm-driver=virtualbox --extra-config=kubelet.authentication-token-webhook=true
+minikube start --vm-driver=hyperkit  --network-plugin=cni --extra-config=kubelet.network-plugin=cni
+
+minikube ip
+
 ##################################################################################
 # kops dns troubleshooting
 ##################################################################################
@@ -286,14 +291,44 @@ spec:
 - kubectl exec ...
 - kubectl label ...
 - kubectl config ...
+- kubectl taint ...
+
+##################################################################################
+# Kubernetes - kubectl SHORTNAMES
+##################################################################################
+kubectl api-resources
+
+nodes -> no
+pods -> po
+namespaces -> ns
+persistentvolumes -> pv
+persistentvolumeclaims -> pvc
+services -> svc
+deployments -> deploy
+replicationcontrollers -> rc
+
+serviceaccounts -> sa
+daemonsets -> ds
+replicasets -> rs
+configmaps -> cm
+endpoints -> ep
+statefulsets -> sts
+horizontalpodautoscalers -> hpa
+networkpolicies -> netpol
+podsecuritypolicies -> psp
+ingresses -> ing
+events -> ev
+certificatesigningrequests -> csr
+
+storageclasses -> sc
+priorityclasses -> pc
+
+cronjobs -> cj
+resourcequotas -> quota
 
 ##################################################################################
 # Kubernetes - kubectl other useful commands
 ##################################################################################
-minikube start --vm-driver=virtualbox --extra-config=kubelet.authentication-token-webhook=true
-
-kubectl api-resources
-
 kubectl scale -n <namespace> deployment <deployment_name> --replicas=n
 kubectl scale -n deployments deployment support-tier --replicas=5
 
@@ -403,4 +438,13 @@ kubectl explain pods.spec.containers.readinessProbe.httpGet
 kubectl explain pods.spec.containers.readinessProbe.httpGet.path
 
 kubectl explain pods.spec.containers --recursive | less
+
+kubectl taint nodes node1 key=value:NoSchedule
+kubectl taint nodes node01 spray=mortein:NoSchedule
+
+kubectl label nodes <node-name> <label-key>=<label-value>
+
+# For secrets
+echo –n 'mysql' | base64
+echo –n '4oCTbiBteXNxbAo=' | base64 --decode
 

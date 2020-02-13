@@ -1,0 +1,338 @@
+# GitHub
+
+https://github.com/cloudacademy/voteapp-frontend-react
+https://github.com/cloudacademy/voteapp-api-go
+https://github.com/cloudacademy/voteapp-k8s
+
+# Kubernetes Resources
+
+Namespace
+Deployment/ReplicaSet
+Pod
+Service
+Ingress/Ingress Controller
+StatefulSet
+  Persistent Volume
+  Persistent Volume Claim
+  Headless Service
+NetworkPolicy
+
+# minikube setup on mac
+# minikube start --vm-driver=hyperkit  --network-plugin=cni --extra-config=kubelet.network-plugin=cni
+# minikube setup on ec2
+sudo minikube start --vm-driver=none  --network-plugin=cni
+
+sudo minikube status
+docker images
+docker ps
+
+kubectl version -o yaml
+
+# configure kube config
+sudo ls -la /root/.minikube
+sudo cp /root/.minikube/ca.crt /home/ec2-user/.kube/
+sudo cp /root/.minikube/client.crt /home/ec2-user/.kube/
+sudo cp /root/.minikube/client.key /home/ec2-user/.kube/
+ls -la /home/ec2-user/.kube/
+sudo chown -R ec2-user:ec2-user /home/ec2-user/.kube/
+
+[ec2-user@ip-172-31-44-114 ~]$ sudo minikube ip
+172.31.44.114
+
+IP=`sudo minikube ip`
+echo $IP
+
+cat > /home/ec2-user/.kube/config << EOF
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: ca.crt
+    server: https://$IP:8443
+  name: minikube
+contexts:
+- context:
+    cluster: minikube
+    user: minikube
+  name: minikube
+current-context: minikube
+kind: Config
+preferences: {}
+users:
+- name: minikube
+  user:
+    client-certificate: client.crt
+    client-key: client.key
+EOF
+
+kubectl get nodes
+kubectl get cs
+
+# Cilium CNI Installation
+# Cilium - L4/L7 Network Policies
+
+kubectl create -f https://raw.githubusercontent.com/cilium/cilium/1.6.1/install/kubernetes/quick-install.yaml
+
+  configmap/cilium-config created
+  serviceaccount/cilium created
+  serviceaccount/cilium-operator created
+  clusterrole.rbac.authorization.k8s.io/cilium created
+  clusterrole.rbac.authorization.k8s.io/cilium-operator created
+  clusterrolebinding.rbac.authorization.k8s.io/cilium created
+  clusterrolebinding.rbac.authorization.k8s.io/cilium-operator created
+  daemonset.apps/cilium created
+  deployment.apps/cilium-operator created
+
+kubectl -n kube-system get po --watch
+
+mkdir -p voteapp && cd voteapp
+git clone https://github.com/cloudacademy/voteapp-frontend-react.git
+git clone https://github.com/cloudacademy/voteapp-api-go.git
+git clone https://github.com/cloudacademy/voteapp-k8s.git
+
+grep -iRl "X.X.X.X.nip.io" ./
+
+https://nip.io/
+
+EXTIP=`curl -s ifconfig.co`
+
+egrep -lRZ 'X.X.X.X.nip.io' . | xargs -0 -l sed -i -e "s/X.X.X.X.nip.io/$EXTIP.nip.io/g"
+
+# build docker images
+cd voteapp-frontend-react/
+yarn install
+yarn build
+docker build -t cloudacademy/frontend:v1 .
+docker images
+
+cd voteapp-api-go/
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o api
+docker build -t cloudacademy/api:v1 .
+docker images
+
+# create namespace
+cd voteapp-k8s/
+kubectl apply -f namespace/namespace.yaml
+namespace/cloudacademy created
+
+kubectl config set-context --current --namespace=cloudacademy
+kubectl get ns
+
+# create mongodb resources
+sudo yum install -y tmux
+tmux
+Control + B together with a double quote
+Control + B for left right navigating
+watch -n2 kubectl get all,pv,pvc
+kubectl apply -f database/mongo.statefulset.yaml
+
+kubectl exec -it mongo-0 bash
+mongo
+mongo mongo-0.mongo
+mongo mongo-1.mongo
+mongo mongo-2.mongo
+
+mongo mongo-0.mongo
+rs.initiate()
+rs.add("mongo-1:27017") # failed
+rs.add("mongo-1.mongo:27017") # success, DNS name <pod-name>.<service-name>
+rs.add("mongo-2.mongo:27017")
+
+var cfg = rs.conf()
+cfg
+cfg.members[0].host
+cfg.members[0].host = "mongo-0.mongo:27017"
+rs.reconfig(cfg, {force:true});
+
+kubectl exec -it mongo-0 bash
+mongo
+rs.status()
+use langdb
+
+db.languages.insert({"name" : "go", "codedetail": { "usecase" : "system, web, server-side", "rank" : 16, "compiled" : true, "homepage" : "https://golang.org", "download" : "https://golang.org/dl/", "votes" : 0}})
+db.languages.insert({"name" : "java", "codedetail": { "usecase" : "system, web, server-side", "rank" : 2, "compiled" : true, "homepage" : "https://java.com/en/", "download" : "https://java.com/en/download/", "votes" : 0}})
+db.languages.insert({"name" : "nodejs", "codedetail": { "usecase" : "system, web, server-side", "rank" : 30, "compiled" : false, "homepage" : "https://nodejs.org/en/", "download" : "https://nodejs.org/en/download/", "votes" : 0}})
+
+show collections
+db.languages.find()
+
+# create API resources
+kubectl apply -f api
+deployment.apps/api created
+service/api created
+ingress.extensions/api created
+
+kubectl get po -o wide
+kubectl logs api-7d45959467-6g4w2
+curl -s 10.114.81.11:8080/ok
+
+kubectl get svc
+curl -s 10.111.220.115:8080/languages/go
+for i in {1..10}; do curl -s 10.111.220.115:8080/languages/go; done
+
+# create frontend resources
+kubectl apply -f frontend
+deployment.apps/frontend created
+service/frontend created
+ingress.extensions/frontend created
+
+kubectl get po -o wide
+curl -I 10.114.137.237
+kubectl get svc
+curl -I 10.104.233.1
+
+44.233.183.203
+http://frontend.44.233.183.203.nip.io/ # failed
+
+# Create K8s Nginx Ingress Controller Resource
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.28.0/deploy/static/mandatory.yaml
+
+  namespace/ingress-nginx created
+  configmap/nginx-configuration created
+  configmap/tcp-services created
+  configmap/udp-services created
+  serviceaccount/nginx-ingress-serviceaccount created
+  clusterrole.rbac.authorization.k8s.io/nginx-ingress-clusterrole created
+  role.rbac.authorization.k8s.io/nginx-ingress-role created
+  rolebinding.rbac.authorization.k8s.io/nginx-ingress-role-nisa-binding created
+  clusterrolebinding.rbac.authorization.k8s.io/nginx-ingress-clusterrole-nisa-binding created
+  deployment.apps/nginx-ingress-controller created
+  limitrange/ingress-nginx created
+
+kubectl get all -n ingress-nginx
+kubectl get deploy nginx-ingress-controller -n ingress-nginx
+kubectl get deploy nginx-ingress-controller -n ingress-nginx -o yaml >> nginx-ingress-controller.yaml
+vim nginx-ingress-controller.yaml
+    spec:
+      hostNetwork: true
+      containers:
+
+kubectl apply -f nginx-ingress-controller.yaml
+kubectl explain deployment.spec.template.spec.hostNetwork
+
+# from my local machine
+curl -s http://api.44.233.183.203.nip.io/ok
+curl -s http://api.44.233.183.203.nip.io/languages | jq .
+curl -s http://frontend.44.233.183.203.nip.io/
+
+# K8s VoteApp End-to-End Test
+http://frontend.44.233.183.203.nip.io/
+vote and check in mongodb 
+kubectl get po
+kubectl exec -it mongo-0 bash
+mongo
+use langdb
+show collections
+db.languages.find()
+
+# Create K8s Network Policy Resources
+kubectl apply -f netpol/1.network.policy.deny-all.yaml
+kubectl apply -f netpol
+
+# Testing network policies
+kubectl get po -o wide
+
+kubectl run --rm -i --tty --image busybox --restart Never --labels role=api -- sh
+telnet 10.114.173.0 27017
+
+kubectl get netpol
+kubectl delete netpol allow-to-mongo-from-api
+
+kubectl run --rm -i --tty --image busybox --restart Never --labels role=api -- sh
+telnet 10.114.173.0 27017
+
+kubectl apply -f netpol
+
+# K8s Cluster DNS Resolution Testing
+kubectl get po -n kube-system -l k8s-app=kube-dns
+
+kubectl run --rm -i --tty dig --image tutum/dnsutils --restart Never -- sh
+
+dig mongo.cloudacademy.svc.cluster.local
+;; ANSWER SECTION:
+mongo.cloudacademy.svc.cluster.local. 30 IN A	10.114.81.62
+mongo.cloudacademy.svc.cluster.local. 30 IN A	10.114.134.72
+mongo.cloudacademy.svc.cluster.local. 30 IN A	10.114.173.0
+
+dig api.cloudacademy.svc.cluster.local
+;; ANSWER SECTION:
+api.cloudacademy.svc.cluster.local. 30 IN A	10.111.220.115
+
+dig frontend.cloudacademy.svc.cluster.local
+;; ANSWER SECTION:
+frontend.cloudacademy.svc.cluster.local. 30 IN A 10.104.233.1
+
+[ec2-user@ip-172-31-44-114 voteapp-k8s]$ kubectl get svc
+NAME       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)     AGE
+api        ClusterIP   10.111.220.115   <none>        8080/TCP    145m
+frontend   ClusterIP   10.104.233.1     <none>        80/TCP      138m
+mongo      ClusterIP   None             <none>        27017/TCP   169m
+
+[ec2-user@ip-172-31-44-114 voteapp-k8s]$ kubectl get po -o wide | grep mongo
+mongo-0                    1/1     Running   0          170m   10.114.173.0     minikube   
+mongo-1                    1/1     Running   0          170m   10.114.81.62     minikube   
+mongo-2                    1/1     Running   0          169m   10.114.134.72    minikube   
+
+# rolling update to voteapp-frontend-react
+vim src/components/ProgrammingLanguage.js
+vim src/components/Vote.js
+
+yarn build
+docker build -t cloudacademy/frontend:v2 .
+
+vim frontend/1.frontend.deployment.yaml
+
+tmux
+Control + B + "
+watch -n2 kubectl get po
+
+kubectl apply -f frontend/1.frontend.deployment.yaml
+
+# Delete All K8s Resources
+[ec2-user@ip-172-31-44-114 voteapp-k8s]$ kubectl get all,ingress,pv,pvc,statefulset
+NAME                            READY   STATUS    RESTARTS   AGE
+pod/api-7d45959467-6g4w2        1/1     Running   0          161m
+pod/api-7d45959467-7xqdj        1/1     Running   0          161m
+pod/api-7d45959467-j72qm        1/1     Running   0          161m
+pod/api-7d45959467-vmc9t        1/1     Running   0          161m
+pod/frontend-76d765548b-4r8xn   1/1     Running   0          3m25s
+pod/frontend-76d765548b-6v5qz   1/1     Running   0          3m34s
+pod/frontend-76d765548b-7jmfg   1/1     Running   0          3m34s
+pod/frontend-76d765548b-zld2h   1/1     Running   0          3m24s
+pod/mongo-0                     1/1     Running   0          3h5m
+pod/mongo-1                     1/1     Running   0          3h5m
+pod/mongo-2                     1/1     Running   0          3h5m
+
+
+NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)     AGE
+service/api        ClusterIP   10.111.220.115   <none>        8080/TCP    161m
+service/frontend   ClusterIP   10.104.233.1     <none>        80/TCP      154m
+service/mongo      ClusterIP   None             <none>        27017/TCP   3h5m
+
+
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/api        4/4     4            4           161m
+deployment.apps/frontend   4/4     4            4           154m
+
+NAME                                  DESIRED   CURRENT   READY   AGE
+replicaset.apps/api-7d45959467        4         4         4       161m
+replicaset.apps/frontend-76d765548b   4         4         4       3m34s
+replicaset.apps/frontend-94c478b79    0         0         0       154m
+
+NAME                     READY   AGE
+statefulset.apps/mongo   3/3     3h5m
+
+NAME                          HOSTS                            ADDRESS   PORTS   AGE
+ingress.extensions/api        api.44.233.183.203.nip.io                  80      161m
+ingress.extensions/frontend   frontend.44.233.183.203.nip.io             80      154m
+
+NAME                                                        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                                                   STORAGECLASS   REASON   AGE
+persistentvolume/pvc-396566c3-684d-4ed8-8550-e5732cb417f6   1Gi        RWO            Delete           Bound    cloudacademy/mongodb-persistent-storage-claim-mongo-0   standard                3h5m
+persistentvolume/pvc-6de0b875-b132-428e-94a2-8dfdfee4ff1d   1Gi        RWO            Delete           Bound    cloudacademy/mongodb-persistent-storage-claim-mongo-2   standard                3h5m
+persistentvolume/pvc-f39a76a1-7ddf-44ae-b861-87fa43f28413   1Gi        RWO            Delete           Bound    cloudacademy/mongodb-persistent-storage-claim-mongo-1   standard                3h5m
+
+NAME                                                             STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/mongodb-persistent-storage-claim-mongo-0   Bound    pvc-396566c3-684d-4ed8-8550-e5732cb417f6   1Gi        RWO            standard       3h5m
+persistentvolumeclaim/mongodb-persistent-storage-claim-mongo-1   Bound    pvc-f39a76a1-7ddf-44ae-b861-87fa43f28413   1Gi        RWO            standard       3h5m
+persistentvolumeclaim/mongodb-persistent-storage-claim-mongo-2   Bound    pvc-6de0b875-b132-428e-94a2-8dfdfee4ff1d   1Gi        RWO            standard       3h5m
+
+kubectl delete deploy,svc,ingress,statefulset,pv,pvc --all
