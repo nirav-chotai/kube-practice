@@ -40,6 +40,9 @@ AWS: https://aws.amazon.com/quickstart/architecture/vmware-kubernetes/
 kubeaudit: https://github.com/Shopify/kubeaudit
 kubeaudit helps you audit your Kubernetes clusters against common security controls
 
+telepresence: https://www.telepresence.io/
+FAST, LOCAL DEVELOPMENT FOR KUBERNETES AND OPENSHIFT MICROSERVICES
+
 ##################################################################################
 # Kubernetes - How to interact with kubernetes?
 ##################################################################################
@@ -448,3 +451,17 @@ kubectl label nodes <node-name> <label-key>=<label-value>
 echo –n 'mysql' | base64
 echo –n '4oCTbiBteXNxbAo=' | base64 --decode
 
+# Updating a Deployment
+kubectl create deployment nginx --image=nginx:1.16
+kubectl rollout status deployment nginx
+kubectl rollout history deployment nginx
+kubectl rollout history deployment nginx --revision=1
+kubectl set image deployment nginx nginx=nginx:1.17 --record
+kubectl rollout history deployment nginx
+kubectl edit deployments. nginx --record
+kubectl rollout history deployment nginx
+kubectl rollout history deployment nginx --revision=3
+kubectl rollout undo deployment nginx
+kubectl rollout history deployment nginx
+kubectl rollout history deployment nginx --revision=4
+kubectl describe deployments. nginx | grep -i image:
