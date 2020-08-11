@@ -92,7 +92,7 @@ Both the above commands have their own challenges. While one of it cannot accept
 
 ---
 
-#### Reference:
+#### References:
 
 - https://kubernetes.io/docs/reference/kubectl/conventions/
 - https://kubectl.docs.kubernetes.io/
@@ -101,7 +101,7 @@ Both the above commands have their own challenges. While one of it cannot accept
 
 # Certification Tip: Formatting Output with kubectl
                                                                        
-The default output format for all kubectl commands is the human-readable plain-text format.
+The default output format for all `kubectl` commands is the human-readable plain-text format.
 
 The -o flag allows us to output the details in several different formats.
 
@@ -168,3 +168,105 @@ For more details, refer:
 
 - https://kubernetes.io/docs/reference/kubectl/overview/
 - https://kubernetes.io/docs/reference/kubectl/cheatsheet
+
+---
+
+# Imperative Commands
+
+```shell script
+kubectl run nginx-pod --image=nginx:alpine
+kubectl run redis --image=redis:alpine --labels tier=db
+kubectl expose pod redis --port=6379 --name redis-service
+kubectl create deployment --image=kodekloud/webapp-color webapp
+kubectl scale deployment/webapp --replicas=3
+
+kubectl run custom-nginx --image=nginx --port=8080
+
+kubectl create ns dev-ns
+kubectl create deployment redis-deploy --image=redis -n dev-ns
+kubectl scale deployment/redis-deploy --replicas=2 -n dev-ns
+
+kubectl run httpd --image=httpd:alpine --port=80 --expose
+```
+---
+
+# Commands and Arguments
+
+```shell script
+FROM python:3.6-alpine
+
+RUN pip install flask
+
+COPY . /opt/
+
+EXPOSE 8080
+
+WORKDIR /opt
+
+ENTRYPOINT ["python", "app.py"]
+
+CMD ["--color", "red"]
+```
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp-green
+  labels:
+      name: webapp-green
+spec:
+  containers:
+  - name: simple-webapp
+    image: kodekloud/webapp-color
+    command: ["python", "app.py"]
+    args: ["--color", "pink"]
+```
+---
+
+# ENV Value Types
+
+```shell script
+env:
+  - name: APP_COLOR
+    value: pink
+
+env:
+  - name: APP_COLOR
+    valueFrom:
+      secretKeyRef:
+        name: mysecret
+        key: color
+
+env:
+  - name: APP_COLOR
+    valueFrom:
+      configMapKeyRef:
+        name: mysecret
+        key: color
+
+envFrom:
+  - configMapRef:
+      name: special-config
+```
+
+---
+
+# ConfigMap
+
+```shell script
+  containers:
+    - name: test-container
+      image: k8s.gcr.io/busybox
+      command: [ "/bin/sh", "-c", "ls /etc/config/" ]
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        # Provide the name of the ConfigMap containing the files you want
+        # to add to the container
+        name: special-config
+```
+
