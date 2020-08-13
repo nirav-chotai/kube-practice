@@ -248,13 +248,17 @@ env:
 envFrom:
   - configMapRef:
       name: special-config
+
+envFrom:
+  - secretRef:
+      name: mysecret
 ```
 
 ---
 
 # ConfigMap
 
-```shell script
+```yaml
   containers:
     - name: test-container
       image: k8s.gcr.io/busybox
@@ -270,3 +274,180 @@ envFrom:
         name: special-config
 ```
 
+# Secrets
+
+```yaml
+  containers:
+  - name: ssh-test-container
+    image: mySshImage
+    volumeMounts:
+    - name: secret-volume
+      readOnly: true
+      mountPath: "/etc/secret-volume"
+  volumes:
+  - name: secret-volume
+    secret:
+      secretName: ssh-key-secret
+```
+---
+
+# LimitRange
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mem-limit-range
+spec:
+  limits:
+  - default:
+      memory: 512Mi
+    defaultRequest:
+      memory: 256Mi
+    type: Container
+```
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: cpu-limit-range
+spec:
+  limits:
+  - default:
+      cpu: 1
+    defaultRequest:
+      cpu: 0.5
+    type: Container
+```
+References:
+- https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-default-namespace/
+- https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/cpu-default-namespace/
+- https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/
+
+---
+
+# Capabilities
+
+```yaml
+  containers:
+  - command:
+    - sleep
+    - "4800"
+    image: ubuntu
+    imagePullPolicy: Always
+    name: ubuntu
+    securityContext:
+      capabilities:
+        add: ["SYS_TIME"]  
+```
+---
+
+# Taints and Tolerations
+
+```shell script
+kubectl taint nodes node1 key1=value1:NoSchedule
+kubectl taint nodes node1 key1=value1:NoExecute
+```
+
+```yaml
+tolerations:
+- key: "key1"
+  operator: "Equal"
+  value: "value1"
+  effect: "NoSchedule"
+- key: "key1"
+  operator: "Equal"
+  value: "value1"
+  effect: "NoExecute"
+```
+
+```yaml
+  tolerations:
+  - key: "example-key"
+    operator: "Exists"
+    effect: "NoSchedule"
+```
+---
+
+# Node Selector
+
+```yaml
+  containers:
+  - name: nginx
+    image: nginx
+    imagePullPolicy: IfNotPresent
+  nodeSelector:
+    disktype: ssd
+```
+---
+
+# Node affinity
+
+```shell script
+kubectl label node node01 color=blue
+```
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: with-node-affinity
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/e2e-az-name
+            operator: In
+            values:
+            - e2e-az1
+            - e2e-az2
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: another-node-label-key
+            operator: In
+            values:
+            - another-node-label-value
+  containers:
+  - name: with-node-affinity
+    image: k8s.gcr.io/pause:2.0
+```
+
+- podAffinity
+- podAntiAffinity
+
+---
+
+# Sidecar
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: app
+  name: app
+  namespace: elastic-stack
+spec:
+  containers:
+  - image: kodekloud/event-simulator
+    imagePullPolicy: Always
+    name: app
+    volumeMounts:
+    - mountPath: /log
+      name: log-volume
+  - name: sidecar
+    image: kodekloud/filebeat-configured
+    volumeMounts:
+      - mountPath: /var/log/event-simulator/
+        name: log-volume
+  volumes:
+  - hostPath:
+      path: /var/log/webapp
+      type: DirectoryOrCreate
+    name: log-volume
+```
