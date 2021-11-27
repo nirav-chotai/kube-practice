@@ -451,3 +451,193 @@ spec:
       type: DirectoryOrCreate
     name: log-volume
 ```
+
+# readinessProbe and livenessProbe
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: simple-webapp
+  name: simple-webapp-1
+spec:
+  containers:
+  - image: kodekloud/webapp-delayed-start
+    imagePullPolicy: Always
+    name: simple-webapp
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+    livenessProbe:
+      httpGet:
+        path: /live
+        port: 8080
+      periodSeconds: 1
+      initialDelaySeconds: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: simple-webapp
+  name: simple-webapp-2
+spec:
+  containers:
+  - env:
+    - name: APP_START_DELAY
+      value: "80"
+    image: kodekloud/webapp-delayed-start
+    imagePullPolicy: Always
+    name: simple-webapp
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+    readinessProbe:
+      failureThreshold: 3
+      httpGet:
+        path: /ready
+        port: 8080
+        scheme: HTTP
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    livenessProbe:
+      httpGet:
+        path: /live
+        port: 8080
+      periodSeconds: 1
+      initialDelaySeconds: 80
+```
+
+# Job
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: throw-dice-job
+spec:
+  completions: 3
+  parallelism: 3
+  template:
+    spec:
+      containers:
+      - name: throw-dice
+        image: kodekloud/throw-dice
+      restartPolicy: Never
+```
+---
+
+# CronJob
+
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: throw-dice-cron-job
+spec:
+  schedule: "30 21 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: throw-dice
+            image: kodekloud/throw-dice
+          restartPolicy: OnFailure
+```
+---
+
+# NGINX Ingress Controller
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  name: ingress-web
+  namespace: critical-space
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          serviceName: pay-service
+          servicePort: 8282
+        path: /pay
+        pathType: ImplementationSpecific
+      - backend:
+          serviceName: wear-service
+          servicePort: 8080
+        path: /wear
+        pathType: ImplementationSpecific
+      - backend:
+          serviceName: video-service
+          servicePort: 8080
+        path: /watch
+        pathType: ImplementationSpecific       
+```
+---
+
+# NetworkPolicy
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: internal-policy  
+spec:
+  podSelector:
+    matchLabels:
+      name: internal
+  policyTypes:  
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+            name: payroll
+    ports:
+    - protocol: TCP
+      port: 8080
+  - to:
+    - podSelector:
+        matchLabels:
+            name: mysql
+    ports:
+    - protocol: TCP
+      port: 3306
+```
+---
+
+# PV and PVC
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-log
+spec:
+  capacity:
+    storage: 100Mi  
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/pv/log"
+```
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: claim-log-1
+spec:  
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Mi
+```
